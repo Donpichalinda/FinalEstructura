@@ -6,6 +6,7 @@
 using namespace std;
 
 class Jugador {
+
 private:
     string nombre;
     int puntaje;
@@ -13,16 +14,19 @@ private:
     stack<string> tesoros;
 
 public:
+
     Jugador(string n);
 
+    void sumarMovimiento();
+    int getPuntaje();
+    string getNombre();
+
+    // Manejo de tesoros
     void agregarTesoro(string tipo);
     void usarTesoro();
 
-    int getPuntaje();
-    void sumarMovimiento();
-
-    int getTesorosRecogidos();
-    string getNombre();
+    int getCantidadTesoros();
+    stack<string> getTesoros();
 };
 
 #endif
