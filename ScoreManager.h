@@ -3,17 +3,18 @@
 
 #include <string>
 #include <map>
-
 using namespace std;
 
-// Se usará un map como tabla hash simple
+// Usaremos un map como tabla hash simple
 class ScoreManager {
+
 private:
-    map<string, int> tablaPuntajes;
+    map<string, int> puntajes;
 
 public:
+
     void registrarPuntaje(string nombre, int puntaje);
-    void mostrarPuntaje(string nombre);
+    int obtenerPuntaje(string nombre);
     void mostrarRanking();
 };
 
