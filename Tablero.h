@@ -1,45 +1,47 @@
 #ifndef TABLERO_H
 #define TABLERO_H
 
-#include "Nodo.h"
-#include "Jugador.h"
-#include <stack>
-
-using namespace std;
+#include <list>
+#include "Celda.h"
 
 class Tablero {
+public:
+    Tablero();
+    ~Tablero();
+
+    void inicializar();
+    void imprimir() const;
+    void reiniciarDescubrimiento();
+
+    bool moverJugador(char direccion,
+                      TipoTesoro &tesoroEncontrado,
+                      bool &hayTesoroEncontrado,
+                      bool &chocoConMuro);
+
+    void reinsertarTesoro(TipoTesoro tesoro);
+    void eliminarMurosInternosAleatorios(int cantidad);
+    void teletransportarJugadorAleatorio();
 
 private:
+    static const int FILAS = 9;
+    static const int COLUMNAS = 9;
 
-    Nodo* inicio;           // Nodo superior izquierdo
-    Nodo* jugadorPos;       // Posición actual del jugador
+    Celda* celdaInicial;
+    Celda* celdaJugador;
 
-public:
+    void construirCuadricula();
+    void liberarCuadricula();
 
-    Tablero();
+    std::list<Celda*> obtenerTodasLasCeldas() const;
+    std::list<Celda*> obtenerCeldasParaTesoro() const;
+    std::list<Celda*> obtenerCeldasParaMuroInterno() const;
+    std::list<Celda*> obtenerCeldasParaTeletransporte() const;
 
-    // Construcción
-    void generarNodos();
-    Nodo* getNodoPorIndice(int index);
-    void inicializarTablero(Jugador* jugador);
+    Celda* celdaAleatoriaDesdeLista(const std::list<Celda*> &listaCeldas) const;
 
-    // Juego
-    void moverJugador(char mov, Jugador* jugador);
-
-    // Renderizado
-    void mostrarTablero();
-    void mostrarTesoros(Jugador* jugador);
-
-    // Aleatorios
-    void colocarMuros();
-    void colocarTesoros();
-
-    // Efectos especiales
-    void usarTesoroConEfecto(Jugador* jugador);
-    void eliminarMurosAleatorios(int cantidad);
-    void teletransportarJugador();
-    void recolocarTesoro(string tipo);
-    void taparCasillas();
+    void ubicarTesoros(int cantidad);
+    void ubicarMurosInternos(int cantidad);
+    void ubicarJugadorAleatoriamente();
 };
 
-#endif
+#endif // TABLERO_H

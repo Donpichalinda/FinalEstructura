@@ -1,429 +1,348 @@
+#include "Tablero.h"
 #include <iostream>
 #include <cstdlib>
-#include <ctime>
-#include "Tablero.h"
 
-using namespace std;
-
-Tablero::Tablero() {
-    inicio = NULL;
-    jugadorPos = NULL;
-    srand(time(NULL));
+Tablero::Tablero()
+    : celdaInicial(nullptr),
+      celdaJugador(nullptr) {
+    construirCuadricula();
+    inicializar();
 }
 
-
-// =============================================================
-//   BUSCAR NODO POR ÍNDICE (0 – 80)
-// =============================================================
-Nodo* Tablero::getNodoPorIndice(int index) {
-
-    Nodo* temp = inicio;
-    int fila = index / 9;
-    int col = index % 9;
-
-    // Bajar filas
-    for (int i = 0; i < fila; i++) {
-        temp = temp->abajo;
-    }
-
-    // Moverse a la derecha
-    for (int j = 0; j < col; j++) {
-        temp = temp->derecha;
-    }
-
-    return temp;
+Tablero::~Tablero() {
+    liberarCuadricula();
 }
 
+void Tablero::construirCuadricula() {
+    Celda* primerCeldaFilaAnterior = nullptr;
+    celdaInicial = nullptr;
 
-// =============================================================
-//   GENERAR TABLERO 9x9 ENLAZADO SIN MATRICES
-// =============================================================
-void Tablero::generarNodos() {
+    for (int fila = 0; fila < FILAS; ++fila) {
+        Celda* primeraCeldaFila = nullptr;
+        Celda* celdaAnterior = nullptr;
+        Celda* celdaArriba = primerCeldaFilaAnterior;
 
-    Nodo* filaAnterior = NULL;
-    Nodo* primerNodoFilaActual = NULL;
+        for (int columna = 0; columna < COLUMNAS; ++columna) {
+            Celda* celdaActual = new Celda(fila, columna);
 
-    for (int i = 0; i < 9; i++) {
-
-        Nodo* nodoAnterior = NULL;
-        primerNodoFilaActual = NULL;
-
-        for (int j = 0; j < 9; j++) {
-
-            Nodo* nuevo = new Nodo();
-
-            // Guardar primer nodo del tablero
-            if (i == 0 && j == 0) {
-                inicio = nuevo;
+            if (!celdaInicial) {
+                celdaInicial = celdaActual;
+            }
+            if (!primeraCeldaFila) {
+                primeraCeldaFila = celdaActual;
             }
 
-            // Guardar primer nodo de esta fila
-            if (j == 0) {
-                primerNodoFilaActual = nuevo;
+            if (celdaAnterior) {
+                celdaAnterior->derecha = celdaActual;
+                celdaActual->izquierda = celdaAnterior;
             }
 
-            // Enlazar con nodo izquierdo
-            if (nodoAnterior != NULL) {
-                nodoAnterior->derecha = nuevo;
-                nuevo->izquierda = nodoAnterior;
+            if (celdaArriba) {
+                celdaActual->arriba = celdaArriba;
+                celdaArriba->abajo = celdaActual;
+                celdaArriba = celdaArriba->derecha;
             }
 
-            // Enlazar con nodo de arriba
-            if (filaAnterior != NULL) {
-                Nodo* nodoArriba = filaAnterior;
-                for (int k = 0; k < j; k++) {
-                    nodoArriba = nodoArriba->derecha;
-                }
-                nuevo->arriba = nodoArriba;
-                nodoArriba->abajo = nuevo;
+            if (fila == 0 || fila == FILAS - 1 || columna == 0 || columna == COLUMNAS - 1) {
+                celdaActual->esMuroBorde = true;
+                celdaActual->descubierta = true;
             }
 
-            nodoAnterior = nuevo;
+            celdaAnterior = celdaActual;
         }
 
-        filaAnterior = primerNodoFilaActual;
+        primerCeldaFilaAnterior = primeraCeldaFila;
     }
 }
 
+void Tablero::liberarCuadricula() {
+    if (!celdaInicial) return;
 
-// =============================================================
-//   INICIALIZAR TABLERO
-// =============================================================
-void Tablero::inicializarTablero(Jugador* jugador) {
-
-    generarNodos();
-
-    // Colocar tesoros primero
-    colocarTesoros();
-    
-    // Colocar muros
-    colocarMuros();
-
-    // Posición aleatoria para el jugador (evitar tesoros y muros)
-    int pos;
-    Nodo* temp;
-    
-    do {
-        pos = rand() % 81;
-        temp = getNodoPorIndice(pos);
-    } while (temp->tieneTesoro || temp->simbolo == '|');
-
-    jugadorPos = temp;
-    jugadorPos->simbolo = 'P';
-    jugadorPos->revelado = true;
-}
-
-
-// =============================================================
-//   MOSTRAR TABLERO EN CONSOLA
-// =============================================================
-void Tablero::mostrarTablero() {
-
-    cout << "\n  "; 
-    for (int i = 0; i < 9; i++) {
-        cout << i << " ";
-    }
-    cout << endl;
-
-    Nodo* fila = inicio;
-    int numFila = 0;
-
-    while (fila != NULL) {
-
-        cout << numFila << " ";
-        Nodo* col = fila;
-
-        while (col != NULL) {
-
-            if (col == jugadorPos) {
-                cout << "P ";
-            }
-            else if (!col->revelado && col->simbolo != '|') {
-                cout << "o ";
-            }
-            else {
-                cout << col->simbolo << " ";
-            }
-
-            col = col->derecha;
+    Celda* fila = celdaInicial;
+    while (fila) {
+        Celda* siguienteFila = fila->abajo;
+        Celda* actual = fila;
+        while (actual) {
+            Celda* siguiente = actual->derecha;
+            delete actual;
+            actual = siguiente;
         }
+        fila = siguienteFila;
+    }
 
-        cout << endl;
+    celdaInicial = nullptr;
+    celdaJugador = nullptr;
+}
+
+std::list<Celda*> Tablero::obtenerTodasLasCeldas() const {
+    std::list<Celda*> lista;
+    Celda* fila = celdaInicial;
+    while (fila) {
+        Celda* actual = fila;
+        while (actual) {
+            lista.push_back(actual);
+            actual = actual->derecha;
+        }
         fila = fila->abajo;
-        numFila++;
     }
-
-    cout << endl;
+    return lista;
 }
 
-
-// =============================================================
-//   COLOCAR 16 MUROS ALEATORIOS
-// =============================================================
-void Tablero::colocarMuros() {
-
-    int murosColocados = 0;
-
-    while (murosColocados < 16) {
-
-        int pos = rand() % 81;
-        Nodo* temp = getNodoPorIndice(pos);
-
-        // No colocar en jugador o donde ya hay muro o tesoro
-        if (temp->simbolo == 'o' && !temp->tieneTesoro) {
-            temp->simbolo = '|';
-            murosColocados++;
+std::list<Celda*> Tablero::obtenerCeldasParaTesoro() const {
+    std::list<Celda*> resultado;
+    auto todas = obtenerTodasLasCeldas();
+    for (Celda* celda : todas) {
+        if (!celda->esMuroBorde &&
+            !celda->esMuroInterno &&
+            !celda->tieneTesoro &&
+            !celda->tieneJugador) {
+            resultado.push_back(celda);
         }
     }
+    return resultado;
 }
 
-
-// =============================================================
-//   COLOCAR 10 TESOROS ALEATORIOS
-// =============================================================
-void Tablero::colocarTesoros() {
-
-    string tipos[4] = {"Rubi", "Diamante", "Perla", "Ambar"};
-
-    int tesorosColocados = 0;
-
-    while (tesorosColocados < 10) {
-
-        int pos = rand() % 81;
-        Nodo* temp = getNodoPorIndice(pos);
-
-        // No colocar en tesoro existente
-        if (!temp->tieneTesoro) {
-            temp->tieneTesoro = true;
-            temp->tipoTesoro = tipos[rand() % 4];
-            tesorosColocados++;
+std::list<Celda*> Tablero::obtenerCeldasParaMuroInterno() const {
+    std::list<Celda*> resultado;
+    auto todas = obtenerTodasLasCeldas();
+    for (Celda* celda : todas) {
+        if (!celda->esMuroBorde &&
+            !celda->esMuroInterno &&
+            !celda->tieneTesoro &&
+            !celda->tieneJugador) {
+            resultado.push_back(celda);
         }
     }
+    return resultado;
 }
 
-
-// =============================================================
-//   MOVIMIENTO DEL JUGADOR
-// =============================================================
-void Tablero::moverJugador(char mov, Jugador* jugador) {
-
-    // Comandos especiales
-    if (mov == 'T') {
-        mostrarTesoros(jugador);
-        return;
+std::list<Celda*> Tablero::obtenerCeldasParaTeletransporte() const {
+    std::list<Celda*> resultado;
+    auto todas = obtenerTodasLasCeldas();
+    for (Celda* celda : todas) {
+        if (!celda->esMuroBorde &&
+            !celda->esMuroInterno &&
+            !celda->tieneJugador &&
+            !celda->descubierta) {
+            resultado.push_back(celda);
+        }
     }
+    return resultado;
+}
 
-    if (mov == 'X') {
-        usarTesoroConEfecto(jugador);
-        return;
+Celda* Tablero::celdaAleatoriaDesdeLista(const std::list<Celda*> &listaCeldas) const {
+    if (listaCeldas.empty()) return nullptr;
+    int tamano = static_cast<int>(listaCeldas.size());
+    int indiceObjetivo = std::rand() % tamano;
+    int indiceActual = 0;
+    for (Celda* celda : listaCeldas) {
+        if (indiceActual == indiceObjetivo) return celda;
+        ++indiceActual;
     }
+    return nullptr;
+}
 
-    // Movimiento normal
-    Nodo* nuevaPos = NULL;
+void Tablero::ubicarTesoros(int cantidad) {
+    int colocados = 0;
+    while (colocados < cantidad) {
+        auto candidatas = obtenerCeldasParaTesoro();
+        Celda* celda = celdaAleatoriaDesdeLista(candidatas);
+        if (!celda) return;
 
-    switch (mov) {
-        case 'W':
-            nuevaPos = jugadorPos->arriba;
-            break;
-        case 'S':
-            nuevaPos = jugadorPos->abajo;
-            break;
-        case 'A':
-            nuevaPos = jugadorPos->izquierda;
-            break;
-        case 'D':
-            nuevaPos = jugadorPos->derecha;
-            break;
-        default:
-            cout << "Comando no valido." << endl;
-            return;
-    }
+        int tipoAleatorio = std::rand() % 4;
+        TipoTesoro tipo = TipoTesoro::Rubi;
+        if (tipoAleatorio == 1) tipo = TipoTesoro::Diamante;
+        else if (tipoAleatorio == 2) tipo = TipoTesoro::Perla;
+        else if (tipoAleatorio == 3) tipo = TipoTesoro::Ambar;
 
-    // Validar si existe casilla (pared exterior)
-    if (nuevaPos == NULL) {
-        cout << "No se puede mover, hay una pared!" << endl;
-        return;
-    }
-
-    // Validar si es muro
-    if (nuevaPos->simbolo == '|') {
-        cout << "Hay un muro, no puedes pasar!" << endl;
-        nuevaPos->revelado = true;
-        return;
-    }
-
-    // Movimiento válido
-    jugadorPos->simbolo = ' ';
-    jugadorPos->revelado = true;
-
-    jugadorPos = nuevaPos;
-    jugadorPos->simbolo = 'P';
-    jugadorPos->revelado = true;
-
-    jugador->sumarMovimiento();
-
-    // Si hay tesoro
-    if (jugadorPos->tieneTesoro) {
-        cout << "\n*** TESORO ENCONTRADO: " << jugadorPos->tipoTesoro << " ***\n" << endl;
-        jugador->agregarTesoro(jugadorPos->tipoTesoro);
-        jugadorPos->tieneTesoro = false;
-        jugadorPos->tipoTesoro = "";
+        celda->tieneTesoro = true;
+        celda->tesoro = tipo;
+        colocados++;
     }
 }
 
+void Tablero::ubicarMurosInternos(int cantidad) {
+    int colocados = 0;
+    while (colocados < cantidad) {
+        auto candidatas = obtenerCeldasParaMuroInterno();
+        Celda* celda = celdaAleatoriaDesdeLista(candidatas);
+        if (!celda) return;
 
-// =============================================================
-//   MOSTRAR TESOROS DEL JUGADOR
-// =============================================================
-void Tablero::mostrarTesoros(Jugador* jugador) {
-    
-    cout << "\n=== TESOROS RECOLECTADOS ===" << endl;
-    
-    if (jugador->getCantidadTesoros() == 0) {
-        cout << "No tienes tesoros aun." << endl;
-        return;
+        celda->esMuroInterno = true;
+        colocados++;
     }
-    
-    stack<string> temp = jugador->getTesoros();
-    int num = 1;
-    
-    cout << "(El ultimo es el que puedes usar)" << endl;
-    
-    while (!temp.empty()) {
-        cout << num << ". " << temp.top() << endl;
-        temp.pop();
-        num++;
-    }
-    
-    cout << endl;
 }
 
+void Tablero::ubicarJugadorAleatoriamente() {
+    auto todas = obtenerTodasLasCeldas();
+    std::list<Celda*> candidatas;
+    for (Celda* celda : todas) {
+        if (!celda->esMuroBorde &&
+            !celda->esMuroInterno &&
+            !celda->tieneTesoro) {
+            candidatas.push_back(celda);
+        }
+    }
+    Celda* celda = celdaAleatoriaDesdeLista(candidatas);
+    if (!celda) return;
 
-// =============================================================
-//   USAR TESORO Y APLICAR EFECTOS EN EL TABLERO
-// =============================================================
-void Tablero::usarTesoroConEfecto(Jugador* jugador) {
-    
-    if (jugador->getCantidadTesoros() == 0) {
-        cout << "No tienes tesoros para usar!" << endl;
-        return;
-    }
-    
-    stack<string> temp = jugador->getTesoros();
-    string tipoTesoro = temp.top();
-    
-    cout << "\n*** USANDO TESORO: " << tipoTesoro << " ***\n" << endl;
-    
-    // Aplicar efecto del jugador (modifica puntaje)
-    jugador->usarTesoro();
-    
-    // Aplicar efectos especiales del tablero
-    if (tipoTesoro == "Diamante") {
-        eliminarMurosAleatorios(2);
-    }
-    else if (tipoTesoro == "Ambar") {
-        teletransportarJugador();
-    }
-    
-    // Recolocar el tesoro usado
-    recolocarTesoro(tipoTesoro);
-    
-    // Tapar casillas reveladas
-    taparCasillas();
+    celda->tieneJugador = true;
+    celda->descubierta = true;
+    celdaJugador = celda;
 }
 
+void Tablero::inicializar() {
+    auto todas = obtenerTodasLasCeldas();
+    for (Celda* celda : todas) {
+        if (!celda->esMuroBorde) {
+            celda->esMuroInterno = false;
+            celda->tieneTesoro = false;
+            celda->tesoro = TipoTesoro::Ninguno;
+            celda->tieneJugador = false;
+            celda->descubierta = false;
+        } else {
+            celda->tieneJugador = false;
+            celda->tieneTesoro = false;
+            celda->esMuroInterno = false;
+            celda->tesoro = TipoTesoro::Ninguno;
+            celda->descubierta = true;
+        }
+    }
 
-// =============================================================
-//   ELIMINAR MUROS ALEATORIOS
-// =============================================================
-void Tablero::eliminarMurosAleatorios(int cantidad) {
-    
+    celdaJugador = nullptr;
+
+    ubicarTesoros(10);
+    ubicarMurosInternos(16);
+    ubicarJugadorAleatoriamente();
+}
+
+void Tablero::imprimir() const {
+    Celda* fila = celdaInicial;
+    while (fila) {
+        Celda* actual = fila;
+        while (actual) {
+            std::cout << actual->caracterMostrar() << ' ';
+            actual = actual->derecha;
+        }
+        std::cout << '\n';
+        fila = fila->abajo;
+    }
+}
+
+void Tablero::reiniciarDescubrimiento() {
+    auto todas = obtenerTodasLasCeldas();
+    for (Celda* celda : todas) {
+        if (!celda->esMuroBorde) {
+            if (!celda->esMuroInterno) {
+                celda->descubierta = false;
+            } else {
+                celda->descubierta = true;
+            }
+        } else {
+            celda->descubierta = true;
+        }
+    }
+
+    if (celdaJugador) {
+        celdaJugador->descubierta = true;
+    }
+}
+
+bool Tablero::moverJugador(char direccion,
+                           TipoTesoro &tesoroEncontrado,
+                           bool &hayTesoroEncontrado,
+                           bool &chocoConMuro) {
+    hayTesoroEncontrado = false;
+    chocoConMuro = false;
+    tesoroEncontrado = TipoTesoro::Ninguno;
+
+    if (!celdaJugador) return false;
+
+    Celda* celdaDestino = nullptr;
+    if (direccion == 'W') celdaDestino = celdaJugador->arriba;
+    else if (direccion == 'S') celdaDestino = celdaJugador->abajo;
+    else if (direccion == 'A') celdaDestino = celdaJugador->izquierda;
+    else if (direccion == 'D') celdaDestino = celdaJugador->derecha;
+
+    if (!celdaDestino) {
+        std::cout << "No puedes salir del laberinto.\n";
+        return true;
+    }
+
+    if (celdaDestino->esMuroBorde) {
+        std::cout << "Hay una pared de borde, no puedes salir del laberinto.\n";
+        return true;
+    }
+
+    if (celdaDestino->esMuroInterno) {
+        celdaDestino->descubierta = true;
+        chocoConMuro = true;
+        std::cout << "¡Has chocado con un muro interno!\n";
+        return true;
+    }
+
+    celdaJugador->tieneJugador = false;
+
+    celdaJugador = celdaDestino;
+    celdaJugador->tieneJugador = true;
+    celdaJugador->descubierta = true;
+
+    if (celdaJugador->tieneTesoro) {
+        hayTesoroEncontrado = true;
+        tesoroEncontrado = celdaJugador->tesoro;
+        std::cout << "¡Has encontrado un tesoro: "
+                  << tipoTesoroATexto(tesoroEncontrado) << "!\n";
+        celdaJugador->tieneTesoro = false;
+        celdaJugador->tesoro = TipoTesoro::Ninguno;
+    }
+
+    return true;
+}
+
+void Tablero::reinsertarTesoro(TipoTesoro tesoro) {
+    if (tesoro == TipoTesoro::Ninguno) return;
+
+    auto candidatas = obtenerCeldasParaTesoro();
+    Celda* celda = celdaAleatoriaDesdeLista(candidatas);
+    if (!celda) return;
+
+    celda->tieneTesoro = true;
+    celda->tesoro = tesoro;
+}
+
+void Tablero::eliminarMurosInternosAleatorios(int cantidad) {
     int eliminados = 0;
-    int intentos = 0;
-    
-    while (eliminados < cantidad && intentos < 100) {
-        
-        int pos = rand() % 81;
-        Nodo* temp = getNodoPorIndice(pos);
-        
-        if (temp->simbolo == '|') {
-            temp->simbolo = ' ';
-            temp->revelado = true;
-            eliminados++;
-            cout << "Muro eliminado!" << endl;
-        }
-        
-        intentos++;
-    }
-}
-
-
-// =============================================================
-//   TELETRANSPORTAR JUGADOR
-// =============================================================
-void Tablero::teletransportarJugador() {
-    
-    // Limpiar posición actual
-    jugadorPos->simbolo = ' ';
-    jugadorPos->revelado = true;
-    
-    // Buscar nueva posición
-    Nodo* nuevaPos;
-    
-    do {
-        int pos = rand() % 81;
-        nuevaPos = getNodoPorIndice(pos);
-    } while (nuevaPos->revelado || nuevaPos->simbolo == '|' || nuevaPos->tieneTesoro);
-    
-    jugadorPos = nuevaPos;
-    jugadorPos->simbolo = 'P';
-    jugadorPos->revelado = true;
-    
-    cout << "Teletransportado a una nueva ubicacion!" << endl;
-}
-
-
-// =============================================================
-//   RECOLOCAR TESORO USADO
-// =============================================================
-void Tablero::recolocarTesoro(string tipo) {
-    
-    Nodo* temp;
-    
-    do {
-        int pos = rand() % 81;
-        temp = getNodoPorIndice(pos);
-    } while (temp->tieneTesoro || temp == jugadorPos || temp->simbolo == '|');
-    
-    temp->tieneTesoro = true;
-    temp->tipoTesoro = tipo;
-    
-    cout << "El tesoro " << tipo << " ha sido recolocado en el laberinto!" << endl;
-}
-
-
-// =============================================================
-//   TAPAR CASILLAS REVELADAS (excepto muros)
-// =============================================================
-void Tablero::taparCasillas() {
-    
-    Nodo* fila = inicio;
-    
-    while (fila != NULL) {
-        Nodo* col = fila;
-        
-        while (col != NULL) {
-            
-            if (col != jugadorPos && col->revelado && col->simbolo != '|') {
-                col->simbolo = 'o';
-                col->revelado = false;
+    while (eliminados < cantidad) {
+        auto todas = obtenerTodasLasCeldas();
+        std::list<Celda*> muros;
+        for (Celda* celda : todas) {
+            if (celda->esMuroInterno) {
+                muros.push_back(celda);
             }
-            
-            col = col->derecha;
         }
-        
-        fila = fila->abajo;
+        if (muros.empty()) return;
+
+        Celda* celda = celdaAleatoriaDesdeLista(muros);
+        if (!celda) return;
+
+        celda->esMuroInterno = false;
+        eliminados++;
     }
-    
-    cout << "El laberinto se ha vuelto a tapar!" << endl;
+}
+
+void Tablero::teletransportarJugadorAleatorio() {
+    auto candidatas = obtenerCeldasParaTeletransporte();
+    Celda* celda = celdaAleatoriaDesdeLista(candidatas);
+    if (!celda) {
+        std::cout << "No hay casillas validas para teletransportar.\n";
+        return;
+    }
+
+    if (celdaJugador) {
+        celdaJugador->tieneJugador = false;
+    }
+
+    celdaJugador = celda;
+    celdaJugador->tieneJugador = true;
+    celdaJugador->descubierta = true;
 }

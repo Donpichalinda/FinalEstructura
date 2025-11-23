@@ -2,31 +2,17 @@
 #define JUGADOR_H
 
 #include <string>
-#include <stack>
-using namespace std;
 
 class Jugador {
+public:
+    Jugador();
+    explicit Jugador(const std::string &nombre);
+
+    void establecerNombre(const std::string &nombre);
+    const std::string& obtenerNombre() const;
 
 private:
-    string nombre;
-    int puntaje;
-
-    stack<string> tesoros;
-
-public:
-
-    Jugador(string n);
-
-    void sumarMovimiento();
-    int getPuntaje();
-    string getNombre();
-
-    // Manejo de tesoros
-    void agregarTesoro(string tipo);
-    void usarTesoro();
-
-    int getCantidadTesoros();
-    stack<string> getTesoros();
+    std::string nombre;
 };
 
-#endif
+#endif // JUGADOR_H
